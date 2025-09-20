@@ -1,75 +1,35 @@
 const express = require('express');
-const mysql = require('mysql2');
 const cors = require('cors');
+const { MongoClient, ObjectId } = require('mongodb');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// MySQL connection
-const db = mysql.createConnection({
-    host: 'localhost',
-    user: 'root',        // your MySQL username
-    password: 'Appu67..', // your MySQL password
-    database: 'faculty_db'
-});
+const uri = process.env.MONGODB_URI; // set in Vercel or .env
+const client = new MongoClient(uri);
 
-db.connect(err => {
-    if (err) {
+async function connectDB() {
+    try {
+        await client.connect();
+        console.log('Connected to MongoDB');
+    } catch (err) {
         console.error('DB connection error:', err);
-        return;
     }
-    console.log('Connected to MySQL');
-});
+}
+connectDB();
 
-// GET faculty basic info by ID
-app.get('/faculty/:id', (req, res) => {
-    const facultyId = req.params.id;
-    const query = 'SELECT * FROM faculty WHERE id = ?';
-    db.query(query, [facultyId], (err, results) => {
-        if (err) return res.status(500).json({ error: err });
-        res.json(results[0]);
-    });
-});
+const db = client.db('faculty_db');
 
-// GET qualifications
-app.get('/faculty/:id/qualifications', (req, res) => {
+// Example: get faculty info by ID
+app.get('/faculty/:id', async (req, res) => {
     const facultyId = req.params.id;
-    const query = 'SELECT qualification FROM qualifications WHERE faculty_id = ?';
-    db.query(query, [facultyId], (err, results) => {
-        if (err) return res.status(500).json({ error: err });
-        res.json(results);
-    });
-});
-
-// GET research interests
-app.get('/faculty/:id/research', (req, res) => {
-    const facultyId = req.params.id;
-    const query = 'SELECT interest FROM research WHERE faculty_id = ?';
-    db.query(query, [facultyId], (err, results) => {
-        if (err) return res.status(500).json({ error: err });
-        res.json(results);
-    });
-});
-
-// GET experience
-app.get('/faculty/:id/experience', (req, res) => {
-    const facultyId = req.params.id;
-    const query = 'SELECT detail FROM experience WHERE faculty_id = ?';
-    db.query(query, [facultyId], (err, results) => {
-        if (err) return res.status(500).json({ error: err });
-        res.json(results);
-    });
-});
-
-// GET publications
-app.get('/faculty/:id/publications', (req, res) => {
-    const facultyId = req.params.id;
-    const query = 'SELECT publication FROM publications WHERE faculty_id = ?';
-    db.query(query, [facultyId], (err, results) => {
-        if (err) return res.status(500).json({ error: err });
-        res.json(results);
-    });
+    try {
+        const data = await db.collection('faculty').findOne({ _id: new ObjectId(facultyId) });
+        res.json(data);
+    } catch (err) {
+        res.status(500).json({ error: err.toString() });
+    }
 });
 
 app.listen(5000, () => {
